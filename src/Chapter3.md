@@ -24,6 +24,8 @@ https://monkey.org/~marius/funsrv.pdf
 
 实际上在使用rust原生并发操作时，我们调用await后返回的对象，就是一个future，future就是一个用于执行一步操作的容器，下图是对future执行流程的一个大致说明
 
+![future](https://github.com/einQimiaozi/tokio-tutorials/blob/main/img/future.png)
+
 通过图我们来一点一点解剖future吧！
 
 首先future会不断接受一个异步任务，并将其派发到一个线程队列中。
