@@ -24,8 +24,6 @@ https://monkey.org/~marius/funsrv.pdf
 
 实际上在使用rust原生并发操作时，我们调用await后返回的对象，就是一个future，future就是一个用于执行一步操作的容器，下图是对future执行流程的一个大致说明
 
-![future](https://github.com/einQimiaozi/tokio-tutorials/blob/main/img/future.jpg)
-
 通过图我们来一点一点解剖future吧！
 
 首先future会不断接受一个异步任务，并将其派发到一个线程队列中。
@@ -73,3 +71,87 @@ impl Future for service<'_> {
 我们假设了一个读取socket流数据的服务，通过poll不断的给future传递消息并监听任务状态
 
 ### 理解future能够帮助你更好的理解tokio，但如果暂时无法理解future，也不需要花费太多时间死磕，本书的目的仍然是能够让你快速上手使用tokio，实际上我在使用tokio写出第一个异步web服务时，并不理解future，所以暂时没有理解也请不要担心，当你熟练的使用tokio后再回来看这部分即可。
+
+## JoinHandle
+
+说完了future，该说说第二个重点了，JoinHandle。
+
+啊，又有了新概念吗？看起来头要炸了。
+
+别着急，其实理论部分我们在前面的章节已经讲完了，接下来要将的是非常干的干货了！！！
+
+前面说了，tokio就是mio+原生并发的封装，那么future在tokio中有什么意义呢？让我们来看下面这段代码
+
+```rust
+// 定义spawn但不执行
+let t1: JoinHandle<&str> = tokio::spawn(async {
+    println!("hello");
+    return "edo";
+});
+// 实际执行spawn
+let res = t1.await.unwrap();
+println!("{}",res);
+```
+
+其实在tokio中每个spawn是有返回值的，返回值被JoinHandle包装，然后像之前我们使用spawn一样，调用await即可执行该spawn，当执行结束，await释放，结果被返回。
+
+是不是和前面说过的future执行流程很像，其实tokio中的这个JoinHandle就是一个包装future和一个task的任务管理器，理解了future，其实你就能知道JoinHandle在做什么了。
+
+通常我们使用spawn时，最常用的方法就是上面那样的方法了，使用JoinHandle，在需要的地方调用spawn并获取返回值。
+
+同样的，spawn的返回值不是必须的，如果代码中没有返回值，则默认返回一个JoinHandle<()>对象。
+
+其实JoinHandle的实现细节还有很多内容，但是考虑到本书只是一本入门教程，更多的底层原理我就不再阐述了（我也不是太懂哈哈哈哈）。如果你有兴趣深入了解，可以去看tokio源码，并且最好深入了解一下rust原生异步编程。
+
+## 本章作业
+
+1. 在下划线处填空，使代码输出
+
+```
+hello
+tokio
+hello
+edo
+```
+
+```rust
+#[tokio::main]
+async fn main() {
+    let t1: JoinHandle<&str> = tokio::spawn(async {
+        println!("tokio");
+    });
+    let t2: JoinHandle<&str> = tokio::spawn(async {
+        println!("edo");
+    });
+    let t3: JoinHandle<&str> = tokio::spawn(async {
+        println!("hello");
+    });
+    __.await.unwrap();
+    __.await.unwrap();
+    __.await.unwrap();
+    __.await.unwrap();
+}
+```
+
+2. 还记得我第2章瓦的坑么？尝试使用JoinHandle在两个spawn之间共享一个&str类型的变量，两个spawn不要求并发执行，可以顺序执行，由最后执行的spawn输出。
+
+## 上一章作业答案
+
+```rust
+struct Object {
+    name: String,
+}
+
+#[tokio::main]
+async fn main() {
+    let obj = Object{name: "tokio".to_string()};
+    for i in 0..10 {
+        let obj_name = obj.name.clone();
+        tokio::spawn(async move {
+                println!("{:?}",obj_name);
+        }).await;
+    }
+}
+```
+
+其实很简单，既然Object无法Copy，那么我们直接Copy Object中我们需要的可Copy的成员即可。
